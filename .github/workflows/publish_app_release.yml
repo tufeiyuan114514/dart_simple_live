@@ -4,7 +4,7 @@ on:
   workflow_dispatch: # 手动触发
   push:
     branches:
-      - main # 你可以改成你要触发的分支
+      - main # 改成你要触发的分支
 
 jobs:
   build:
@@ -26,19 +26,29 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0' # 可改为你本地用的版本
+          flutter-version: '3.22.0' # 可改成你本地用的版本
 
       # 4. 获取依赖
       - name: Install dependencies
         run: flutter pub get
         working-directory: simple_live_app
 
-      # 5. 构建 APK（分架构）
-      - name: Build APK
-        run: flutter build apk --split-per-abi
+      # 5. 修复 Kotlin 版本过低问题
+      - name: Patch Kotlin version
+        run: sed -i "s/ext.kotlin_version = '.*'/ext.kotlin_version = '1.9.24'/" android/build.gradle
         working-directory: simple_live_app
 
-      # 6. 上传构建产物到 GitHub Actions
+      # 6. 强制 release 构建使用 debug 签名（免 keystore）
+      - name: Patch signing config
+        run: sed -i "s/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/" android/app/build.gradle
+        working-directory: simple_live_app
+
+      # 7. 构建 APK（release）
+      - name: Build APK
+        run: flutter build apk --split-per-abi --release
+        working-directory: simple_live_app
+
+      # 8. 上传构建产物到 GitHub Actions
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
